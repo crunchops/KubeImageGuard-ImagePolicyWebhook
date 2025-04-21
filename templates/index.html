@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K8s DockerHub Image Policy Webhook</title>
+    <link rel="stylesheet" href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="row">
+            <div class="col-12">
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h1 class="card-title">Kubernetes DockerHub Image Policy Webhook</h1>
+                    </div>
+                    <div class="card-body">
+                        <p class="lead">
+                            This webhook validates container images in Kubernetes resources and only allows those from DockerHub repositories.
+                        </p>
+                        <p>
+                            The webhook is running and listening for admission requests from the Kubernetes API server.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h3>Stats</h3>
+                    </div>
+                    <div class="card-body">
+                        <div id="stats-container">
+                            <div class="d-flex justify-content-center">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h3>Status</h3>
+                    </div>
+                    <div class="card-body">
+                        <div id="status-container">
+                            <div class="d-flex justify-content-center">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h3>Documentation</h3>
+                    </div>
+                    <div class="card-body">
+                        <h4>Webhook Endpoints</h4>
+                        <ul>
+                            <li><code>/webhook</code> - Main webhook endpoint that validates images</li>
+                            <li><code>/stats</code> - Returns statistics about webhook operations</li>
+                            <li><code>/health</code> - Health check endpoint</li>
+                            <li><code>/logs</code> - <a href="{{ url_for('logs') }}" class="btn btn-sm btn-outline-primary">View recent webhook logs</a></li>
+                        </ul>
+
+                        <h4>How it Works</h4>
+                        <p>This webhook validates that all container images used in Kubernetes resources come from DockerHub. It rejects resources that use images from other registries.</p>
+                        
+                        <h4>Supported Resources</h4>
+                        <p>The webhook validates images in the following Kubernetes resource types:</p>
+                        <ul>
+                            <li>Pods</li>
+                            <li>Deployments</li>
+                            <li>StatefulSets</li>
+                            <li>DaemonSets</li>
+                            <li>ReplicaSets</li>
+                            <li>Jobs</li>
+                            <li>CronJobs</li>
+                        </ul>
+                        
+                        <h4>Installation</h4>
+                        <p>See the <code>k8s/webhook-manifests.yaml</code> file for deployment instructions.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Fetch status
+        function checkStatus() {
+            fetch('/health')
+                .then(response => response.json())
+                .then(data => {
+                    const statusContainer = document.getElementById('status-container');
+                    if (data.status === 'healthy') {
+                        statusContainer.innerHTML = `
+                            <div class="alert alert-success">
+                                <i class="bi bi-check-circle-fill"></i> Webhook server is running and healthy
+                            </div>
+                        `;
+                    } else {
+                        statusContainer.innerHTML = `
+                            <div class="alert alert-danger">
+                                <i class="bi bi-exclamation-triangle-fill"></i> Webhook server is experiencing issues
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    const statusContainer = document.getElementById('status-container');
+                    statusContainer.innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="bi bi-exclamation-triangle-fill"></i> Error checking webhook status: ${error.message}
+                        </div>
+                    `;
+                });
+        }
+
+        // Fetch stats
+        function fetchStats() {
+            fetch('/stats')
+                .then(response => response.json())
+                .then(data => {
+                    const statsContainer = document.getElementById('stats-container');
+                    statsContainer.innerHTML = `
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="card bg-primary text-white">
+                                    <div class="card-body text-center">
+                                        <h4 class="card-title">Total</h4>
+                                        <p class="display-4">${data.total_requests}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card bg-success text-white">
+                                    <div class="card-body text-center">
+                                        <h4 class="card-title">Allowed</h4>
+                                        <p class="display-4">${data.allowed_requests}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card bg-danger text-white">
+                                    <div class="card-body text-center">
+                                        <h4 class="card-title">Denied</h4>
+                                        <p class="display-4">${data.denied_requests}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                })
+                .catch(error => {
+                    const statsContainer = document.getElementById('stats-container');
+                    statsContainer.innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="bi bi-exclamation-triangle-fill"></i> Error fetching stats: ${error.message}
+                        </div>
+                    `;
+                });
+        }
+
+        // Initial load
+        checkStatus();
+        fetchStats();
+
+        // Refresh data every 5 seconds
+        setInterval(() => {
+            checkStatus();
+            fetchStats();
+        }, 5000);
+    </script>
+</body>
+</html>
