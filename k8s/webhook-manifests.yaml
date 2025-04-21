@@ -27,7 +27,7 @@ spec:
     spec:
       containers:
       - name: webhook
-        image: ${YOUR_IMAGE_NAME}
+        image: techiescamp/kubeimageguard:latest
         ports:
         - containerPort: 5000
         volumeMounts:

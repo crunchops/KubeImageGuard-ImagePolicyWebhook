@@ -18,11 +18,10 @@ Build the webhook Docker image and push it to a registry accessible by your Kube
 
 ```bash
 # Build the image
-docker build -t dockerhub-image-policy-webhook:latest .
+docker build -t techiescamp/kubeimageguard:latest .
 
-# Tag and push to your registry
-docker tag dockerhub-image-policy-webhook:latest YOUR_REGISTRY/dockerhub-image-policy-webhook:latest
-docker push YOUR_REGISTRY/dockerhub-image-policy-webhook:latest
+# Push to DockerHub
+docker push techiescamp/kubeimageguard:latest
 ```
 
 ### 2. Generate Certificates
@@ -44,11 +43,11 @@ This script:
 Install the webhook components into your Kubernetes cluster:
 
 ```bash
-# If you've pushed the image to your registry, specify the full image name
-./scripts/install-webhook.sh YOUR_REGISTRY/dockerhub-image-policy-webhook:latest
-
-# Or use the default image name if you're using a local cluster with local images
+# Use the official image from DockerHub (default)
 ./scripts/install-webhook.sh
+
+# Or specify a different image if needed
+./scripts/install-webhook.sh your-registry/your-image:tag
 ```
 
 This script:

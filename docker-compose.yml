@@ -3,8 +3,8 @@ version: '3.8'
 services:
   webhook:
     build: .
-    image: dockerhub-image-policy-webhook:latest
-    container_name: dockerhub-webhook
+    image: techiescamp/kubeimageguard:latest
+    container_name: kubeimageguard
     ports:
       - "5000:5000"
     environment:

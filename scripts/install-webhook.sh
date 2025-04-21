@@ -11,7 +11,7 @@ YELLOW='\033[0;33m'
 NC='\033[0m' # No Color
 
 # Define image name
-DEFAULT_IMAGE="dockerhub-image-policy-webhook:latest"
+DEFAULT_IMAGE="techiescamp/kubeimageguard:latest"
 IMAGE_NAME=${1:-$DEFAULT_IMAGE}
 
 echo -e "${GREEN}Installing DockerHub Image Policy Webhook${NC}"
