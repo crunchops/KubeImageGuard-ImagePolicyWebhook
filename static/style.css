@@ -1,0 +1,20 @@
+/* Minimal custom styles for the webhook server UI */
+
+.log-details {
+    max-height: 200px;
+    overflow-y: auto;
+    background-color: var(--bs-dark);
+    color: var(--bs-light);
+    padding: 10px;
+    font-size: 0.85rem;
+    border-radius: 4px;
+}
+
+pre code {
+    white-space: pre-wrap;
+}
+
+.table-responsive {
+    max-height: 600px;
+    overflow-y: auto;
+}

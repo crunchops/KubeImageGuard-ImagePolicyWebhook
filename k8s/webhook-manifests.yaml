@@ -1,0 +1,110 @@
+# Validating Webhook Configuration
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: dockerhub-image-policy
+webhooks:
+- name: dockerhub-image-policy.k8s.io
+  sideEffects: None
+  admissionReviewVersions: ["v1"]
+  failurePolicy: Ignore
+  timeoutSeconds: 5
+  namespaceSelector:
+    # Exclude kube-system and cert-manager namespaces to avoid bootstrapping issues
+    matchExpressions:
+    - key: kubernetes.io/metadata.name
+      operator: NotIn
+      values: ["kube-system", "cert-manager"]
+  rules:
+  - apiGroups: [""]
+    apiVersions: ["v1"]
+    operations: ["CREATE", "UPDATE"]
+    resources: ["pods"]
+    scope: "Namespaced"
+  - apiGroups: ["apps"]
+    apiVersions: ["v1"]
+    operations: ["CREATE", "UPDATE"]
+    resources: ["deployments", "statefulsets", "daemonsets", "replicasets"]
+    scope: "Namespaced"
+  - apiGroups: ["batch"]
+    apiVersions: ["v1"]
+    operations: ["CREATE", "UPDATE"]
+    resources: ["jobs", "cronjobs"]
+    scope: "Namespaced"
+  clientConfig:
+    service:
+      namespace: image-policy-system
+      name: dockerhub-image-policy-webhook
+      path: "/webhook"
+    caBundle: ${CA_BUNDLE}  # This placeholder needs to be replaced with the actual CA bundle
+
+---
+# Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: dockerhub-image-policy-webhook
+  namespace: image-policy-system
+spec:
+  ports:
+  - port: 443
+    targetPort: 5000
+  selector:
+    app: dockerhub-image-policy-webhook
+
+---
+# Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dockerhub-image-policy-webhook
+  namespace: image-policy-system
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: dockerhub-image-policy-webhook
+  template:
+    metadata:
+      labels:
+        app: dockerhub-image-policy-webhook
+    spec:
+      containers:
+      - name: webhook
+        image: ${YOUR_IMAGE_NAME}  # Replace with your container image
+        ports:
+        - containerPort: 5000
+        resources:
+          limits:
+            cpu: 200m
+            memory: 256Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        volumeMounts:
+        - name: tls-certs
+          mountPath: /etc/webhook/certs
+          readOnly: true
+      volumes:
+      - name: tls-certs
+        secret:
+          secretName: dockerhub-image-policy-webhook-certs
+
+---
+# Namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: image-policy-system
