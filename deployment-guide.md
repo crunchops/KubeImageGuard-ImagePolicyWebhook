@@ -1,115 +1,161 @@
-# Dockerization and Deployment Guide for Kubernetes DockerHub Image Policy Webhook
+# DockerHub Image Policy Webhook Deployment Guide
 
-This guide provides step-by-step instructions for building, running, and deploying the Kubernetes DockerHub Image Policy Webhook using Docker.
+This document outlines the deployment process for the DockerHub Image Policy Webhook, a Kubernetes admission controller that validates container images to ensure they come only from DockerHub.
 
 ## Prerequisites
 
-- Docker installed on your system
-- Docker Compose (optional, for local testing)
-- Docker Hub account (for publishing images)
-- Access to a Kubernetes cluster (for deployment)
+- Kubernetes cluster with version 1.16+ 
+- `kubectl` command-line tool
+- Access to the Kubernetes control plane nodes
+- OpenSSL for certificate generation
+- Docker or another container runtime for building the webhook image
 
-## Building the Docker Image
+## Deployment Steps
 
-1. **Clone the repository:**
-   ```
-   git clone <repository-url>
-   cd <repository-directory>
+### 1. Build and Push the Docker Image
+
+Build the webhook Docker image and push it to a registry accessible by your Kubernetes cluster:
+
+```bash
+# Build the image
+docker build -t dockerhub-image-policy-webhook:latest .
+
+# Tag and push to your registry
+docker tag dockerhub-image-policy-webhook:latest YOUR_REGISTRY/dockerhub-image-policy-webhook:latest
+docker push YOUR_REGISTRY/dockerhub-image-policy-webhook:latest
+```
+
+### 2. Generate Certificates
+
+The webhook requires TLS certificates for secure communication with the Kubernetes API server:
+
+```bash
+./scripts/generate-certificates.sh
+```
+
+This script:
+- Generates a CA key and certificate
+- Creates webhook server certificates
+- Generates client certificates for the API server
+- Creates a base64-encoded CA bundle for the webhook configuration
+
+### 3. Deploy the Webhook Components
+
+Install the webhook components into your Kubernetes cluster:
+
+```bash
+# If you've pushed the image to your registry, specify the full image name
+./scripts/install-webhook.sh YOUR_REGISTRY/dockerhub-image-policy-webhook:latest
+
+# Or use the default image name if you're using a local cluster with local images
+./scripts/install-webhook.sh
+```
+
+This script:
+- Creates the `image-policy-system` namespace
+- Creates the TLS secret with the webhook certificates
+- Deploys the webhook service and deployment
+- Applies the ValidatingWebhookConfiguration
+
+### 4. Update Kubernetes API Server Configuration
+
+To enable the ImagePolicyWebhook admission controller, you need to update the Kubernetes API server configuration on each control plane node:
+
+1. Copy the necessary files to each control plane node:
+   ```bash
+   # On the control plane node
+   sudo mkdir -p /etc/kubernetes/pki
+   
+   # Copy files from your deployment machine to the control plane node
+   sudo cp certs/ca.crt /etc/kubernetes/pki/admission-webhook-ca.crt
+   sudo cp certs/apiserver-client.crt /etc/kubernetes/pki/apiserver-client.crt
+   sudo cp certs/apiserver-client.key /etc/kubernetes/pki/apiserver-client.key
+   sudo cp k8s/image-policy-config.yaml /etc/kubernetes/image-policy-config.yaml
+   sudo cp k8s/webhook-kubeconfig.yaml /etc/kubernetes/webhook-kubeconfig.yaml
    ```
 
-2. **Build the Docker image:**
-   ```
-   docker build -t dockerhub-image-policy-webhook:latest .
-   ```
-
-3. **Test the Docker image locally:**
-   ```
-   docker run -p 5000:5000 -e SESSION_SECRET=test_secret dockerhub-image-policy-webhook:latest
+2. Update the kube-apiserver configuration:
+   ```bash
+   sudo ./scripts/update-apiserver-config.sh
    ```
 
-4. **Or use Docker Compose:**
-   ```
-   docker-compose up
-   ```
-
-## Publishing the Image
-
-1. **Tag the image with your Docker Hub username:**
-   ```
-   docker tag dockerhub-image-policy-webhook:latest <your-dockerhub-username>/dockerhub-image-policy-webhook:latest
+3. Verify the API server restarts properly:
+   ```bash
+   kubectl get pods -n kube-system | grep kube-apiserver
    ```
 
-2. **Log in to Docker Hub:**
-   ```
-   docker login
-   ```
+### 5. Test the Webhook
 
-3. **Push the image:**
-   ```
-   docker push <your-dockerhub-username>/dockerhub-image-policy-webhook:latest
-   ```
+Apply the test deployment to verify the webhook is working properly:
 
-## Deploying to Kubernetes
+```bash
+kubectl apply -f k8s/test-deployment.yaml
+```
 
-1. **Update the Kubernetes manifest file:**
+This will attempt to create two deployments:
+- `nginx-test`: Uses a DockerHub image (`nginx:latest`) - Should be ALLOWED
+- `nginx-test-gcr`: Uses a GCR image (`gcr.io/google-containers/nginx:latest`) - Should be REJECTED
 
-   Edit `k8s/webhook-manifests.yaml` and replace the `${YOUR_IMAGE_NAME}` placeholder with your published image name:
-   ```
-   image: <your-dockerhub-username>/dockerhub-image-policy-webhook:latest
-   ```
+Check the deployment status:
+```bash
+kubectl get deployments
+```
 
-2. **Set up TLS certificates:**
-   Follow the TLS certificate setup instructions in the README.md file.
-
-3. **Update the CA Bundle:**
-   Replace the `${CA_BUNDLE}` placeholder in the webhook configuration with the base64-encoded CA certificate:
-   ```
-   sed -i "s|\${CA_BUNDLE}|$(cat certs/ca.crt | base64 | tr -d '\n')|g" k8s/webhook-manifests.yaml
-   ```
-
-4. **Apply the Kubernetes manifests:**
-   ```
-   kubectl apply -f k8s/webhook-manifests.yaml
-   ```
-
-5. **Verify the deployment:**
-   ```
-   kubectl get pods -n image-policy-system
-   ```
+You should see only the `nginx-test` deployment succeed, while the `nginx-test-gcr` deployment should be rejected by the webhook.
 
 ## Troubleshooting
 
-1. **Check webhook pod logs:**
+### Check Webhook Logs
+
+```bash
+kubectl logs -n image-policy-system -l app=dockerhub-image-policy-webhook
+```
+
+### Check API Server Logs
+
+```bash
+kubectl logs -n kube-system -l component=kube-apiserver
+```
+
+### Webhook Not Working
+
+1. Verify the webhook is running:
+   ```bash
+   kubectl get pods -n image-policy-system
    ```
-   kubectl logs -n image-policy-system -l app=dockerhub-image-policy-webhook
+
+2. Check the webhook endpoint is accessible:
+   ```bash
+   kubectl port-forward -n image-policy-system svc/dockerhub-image-policy-webhook 8443:443
+   curl -k https://localhost:8443/health
    ```
 
-2. **Verify service connectivity:**
-   ```
-   kubectl -n image-policy-system port-forward svc/dockerhub-image-policy-webhook 5000:443
-   ```
-   Then, in another terminal:
-   ```
-   curl -k https://localhost:5000/health
+3. Verify the ValidatingWebhookConfiguration:
+   ```bash
+   kubectl get validatingwebhookconfigurations dockerhub-image-policy-webhook-config -o yaml
    ```
 
-3. **Inspect webhook configuration:**
+### API Server Configuration Issues
+
+If the API server fails to start after configuration changes:
+
+1. Check the backup configuration:
+   ```bash
+   ls -l /etc/kubernetes/backups/
    ```
-   kubectl get validatingwebhookconfiguration dockerhub-image-policy
+
+2. Restore the backup if needed:
+   ```bash
+   sudo cp /etc/kubernetes/backups/kube-apiserver-[TIMESTAMP].yaml /etc/kubernetes/manifests/kube-apiserver.yaml
    ```
 
-## Security Considerations
+## Uninstallation
 
-1. **Environment variables:** Use Kubernetes secrets for production deployments instead of hard-coding the SESSION_SECRET in the manifest.
+To remove the webhook from your cluster:
 
-2. **TLS certificates:** Ensure certificates are properly secured and rotated regularly.
+```bash
+kubectl delete -f k8s/webhook-manifests.yaml
+kubectl delete namespace image-policy-system
+```
 
-3. **Resource limits:** Adjust the CPU and memory limits in the Kubernetes deployment manifest based on your workload.
-
-## Customization Options
-
-1. **Worker processes:** Adjust the number of Gunicorn workers in the entrypoint.sh file based on your CPU resources.
-
-2. **Logging level:** Set the appropriate logging level for production by modifying the environment variables.
-
-3. **Health checks:** Customize the liveness and readiness probe parameters in the Kubernetes manifest based on your requirements.
+To disable the ImagePolicyWebhook admission controller, restore the original API server configuration or remove the ImagePolicyWebhook from the --enable-admission-plugins flag.
