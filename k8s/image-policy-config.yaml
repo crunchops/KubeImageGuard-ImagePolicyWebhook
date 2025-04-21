@@ -5,8 +5,7 @@ plugins:
   configuration:
     imagePolicy:
       kubeConfigFile: /etc/kubernetes/webhook-kubeconfig.yaml
-      # Allow all images from any registry if the webhook service is unavailable (failOpen).
-      # Set to Fail to reject all images if the webhook is unavailable.
-      defaultAllow: false # Change to true if you want to allow images when the webhook is unavailable
-      # How long to wait for a response from the webhook
-      timeout: 5s
+      allowTTL: 50
+      denyTTL: 50
+      retryBackoff: 500
+      defaultAllow: false

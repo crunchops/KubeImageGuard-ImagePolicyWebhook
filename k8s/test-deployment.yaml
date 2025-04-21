@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-test
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx-test
+  template:
+    metadata:
+      labels:
+        app: nginx-test
+    spec:
+      containers:
+      - name: nginx
+        # This should be allowed (DockerHub image)
+        image: nginx:latest
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-test-gcr
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx-test-gcr
+  template:
+    metadata:
+      labels:
+        app: nginx-test-gcr
+    spec:
+      containers:
+      - name: nginx
+        # This should be rejected (non-DockerHub image)
+        image: gcr.io/google-containers/nginx:latest
