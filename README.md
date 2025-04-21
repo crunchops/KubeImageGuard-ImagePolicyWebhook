@@ -1,4 +1,4 @@
-# Kubernetes DockerHub Image Policy Webhook
+# KubeImageGuard: Kubernetes DockerHub Image Policy Webhook
 
 This webhook validates container images and only allows those from DockerHub repositories in your Kubernetes cluster.
 
@@ -22,14 +22,24 @@ This application can be containerized for easy deployment. We've included:
 - `docker-compose.yml` - For local testing
 - `deployment-guide.md` - Detailed instructions for building, publishing, and deploying
 
+### Pre-built Docker Image
+
+A pre-built Docker image is available on DockerHub:
+
+```bash
+docker pull techiescamp/kubeimageguard:latest
+```
+
+### Building Locally
+
 To quickly build and test with Docker:
 
 ```bash
 # Build the image
-docker build -t dockerhub-image-policy-webhook:latest .
+docker build -t techiescamp/kubeimageguard:latest .
 
 # Run the container
-docker run -p 5000:5000 -e SESSION_SECRET=test_secret dockerhub-image-policy-webhook:latest
+docker run -p 5000:5000 -e SESSION_SECRET=test_secret techiescamp/kubeimageguard:latest
 ```
 
 For more detailed Docker instructions, see [deployment-guide.md](deployment-guide.md).
