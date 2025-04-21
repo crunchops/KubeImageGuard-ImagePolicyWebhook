@@ -14,7 +14,27 @@ The webhook integrates with Kubernetes admission controllers to intercept and va
 - Logs all admission requests and decisions
 - Handles edge cases and provides clear error messages
 
-## Deployment
+## Docker Support
+
+This application can be containerized for easy deployment. We've included:
+
+- `Dockerfile` - For building the application container
+- `docker-compose.yml` - For local testing
+- `deployment-guide.md` - Detailed instructions for building, publishing, and deploying
+
+To quickly build and test with Docker:
+
+```bash
+# Build the image
+docker build -t dockerhub-image-policy-webhook:latest .
+
+# Run the container
+docker run -p 5000:5000 -e SESSION_SECRET=test_secret dockerhub-image-policy-webhook:latest
+```
+
+For more detailed Docker instructions, see [deployment-guide.md](deployment-guide.md).
+
+## Kubernetes Deployment
 
 ### Prerequisites
 

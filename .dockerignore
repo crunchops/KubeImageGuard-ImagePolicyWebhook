@@ -1,0 +1,37 @@
+# Version control files
+.git
+.gitignore
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+.env
+venv/
+ENV/
+.venv
+.pytest_cache
+
+# Docker files
+.dockerignore
+Dockerfile
+docker-compose.yml
+
+# Certificate directories (for local testing only)
+certs/
+
+# Development and IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Kubernetes manifests (not needed in container)
+k8s/
+
+# Miscellaneous
+.DS_Store
+*.log
